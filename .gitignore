@@ -1,0 +1,11 @@
+node_modules/
+dist/
+cdk.out/
+coverage/
+*.js.map
+*.d.ts
+!eslint.config.mjs
+!vitest.config.mts
+!scripts/*.mjs
+.env
+.env.*
