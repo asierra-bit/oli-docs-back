@@ -29,7 +29,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
 
   const secrets = new SecretsManagerReader({ region: cfg.region });
   const clientSecret = cfg.googleClientSecretId
-    ? await secrets.getSecret(cfg.googleClientSecretId)
+    ? parseClientSecret(await secrets.getSecret(cfg.googleClientSecretId))
     : '';
   const oauth = new GoogleOAuth({
     clientId: cfg.googleClientId,
@@ -50,4 +50,18 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
   });
 
   return runScheduling(event, { schedulingService });
+}
+
+
+/**
+ * The Google client secret is stored as JSON (`{"clientSecret":"..."}`) to
+ * match the AuthStack. Fall back to the raw string for older deployments.
+ */
+function parseClientSecret(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as { clientSecret?: string };
+    return parsed.clientSecret ?? raw;
+  } catch {
+    return raw;
+  }
 }

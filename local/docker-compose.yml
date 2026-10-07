@@ -1,0 +1,66 @@
+# Local development stack for Oli's Docs.
+#
+# Brings up the AWS data-plane dependencies the backend needs, all offline:
+#   - DynamoDB Local  → the single app table (+ GSIs)
+#   - LocalStack      → S3 (document .md content) and SQS (classification/scheduling queues)
+#
+# NOT emulated here (see local/README.md):
+#   - Cognito + Google login  → use fake auth locally (inject cognito:groups)
+#   - Bedrock                 → use AI_PROVIDER=fake or openai with your own key
+#
+# Usage:
+#   docker compose -f local/docker-compose.yml up -d
+#   npm run local:setup      # create tables, bucket, queues
+#   npm run local:api        # start the HTTP runner (see local/README.md)
+
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.2
+    container_name: oli-dynamodb
+    command: ['-jar', 'DynamoDBLocal.jar', '-sharedDb', '-inMemory']
+    ports:
+      - '8000:8000'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -s http://localhost:8000 >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: oli-localstack
+    ports:
+      - '4566:4566'
+    environment:
+      - SERVICES=s3,sqs
+      - DEBUG=0
+      - PERSISTENCE=0
+      - AWS_DEFAULT_REGION=us-east-1
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -s http://localhost:4566/_localstack/health | grep -q "\"s3\": \"available\"\\|\"s3\": \"running\""']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  # One-shot container that provisions tables/bucket/queues once the
+  # dependencies are healthy. Exits 0 when done. Re-run with `npm run local:setup`.
+  setup:
+    image: node:20-alpine
+    container_name: oli-setup
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
+      - TABLE_NAME=AppTable
+      - BUCKET_NAME=oli-docs-local
+    volumes:
+      - ../:/app
+    working_dir: /app
+    entrypoint: ['node', 'local/setup-infra.mjs']

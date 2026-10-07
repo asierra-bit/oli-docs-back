@@ -60,6 +60,7 @@ export function __setDeps(deps: ReviewerHandlerDeps | null): void {
  *   POST   /v1/reviewers
  *   GET    /v1/reviewers
  *   POST   /v1/reviewers/{id}/deactivate
+ *   GET    /v1/reviewers/{id}/assignments
  *   POST   /v1/reviewers/{id}/assignments
  *   PATCH  /v1/reviewers/{id}/assignments/{moduleId}
  *   DELETE /v1/reviewers/{id}/assignments/{moduleId}
@@ -87,6 +88,10 @@ export async function handler(
       if (!reviewerId) throw new NotFoundError('Reviewer', '(missing id)');
 
       switch (method) {
+        case 'GET': {
+          const assignments = await assignmentService.listForReviewer(reviewerId);
+          return ok(assignments);
+        }
         case 'POST': {
           const input = validate(createAssignmentSchema, parseJsonBody(event.body));
           const assignment = await assignmentService.assign(

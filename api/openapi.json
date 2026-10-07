@@ -1,0 +1,521 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Oli Docs — Document Review API",
+    "version": "1.0.0",
+    "description": "Backend API for the Markdown document review system. All endpoints are under /v1 and (except the Google OAuth callback) require a Cognito JWT bearer token. Roles: admin, revisor."
+  },
+  "servers": [{ "url": "/v1", "description": "Versioned base path" }],
+  "security": [{ "bearerAuth": [] }],
+  "tags": [
+    { "name": "Modules" },
+    { "name": "Reviewers" },
+    { "name": "Assignments" },
+    { "name": "Documents" },
+    { "name": "Reviews" },
+    { "name": "Integrations" }
+  ],
+  "paths": {
+    "/modules": {
+      "post": {
+        "tags": ["Modules"],
+        "summary": "Create a module (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateModule" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Module" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "get": {
+        "tags": ["Modules"],
+        "summary": "List modules (admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Module" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/modules/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Modules"],
+        "summary": "Get a module (admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Module" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Modules"],
+        "summary": "Rename a module (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateModule" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Module" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "tags": ["Modules"],
+        "summary": "Delete a module (admin). Rejected if it has linked documents or assignments.",
+        "responses": {
+          "204": { "description": "Deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/reviewers": {
+      "post": {
+        "tags": ["Reviewers"],
+        "summary": "Create a reviewer (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateReviewer" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reviewer" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "get": {
+        "tags": ["Reviewers"],
+        "summary": "List reviewers with assignments (admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ReviewerWithAssignments" } } } } }
+        }
+      }
+    },
+    "/reviewers/{id}/deactivate": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Reviewers"],
+        "summary": "Deactivate a reviewer (admin)",
+        "responses": {
+          "200": { "description": "Deactivated", "content": { "application/json": { "schema": { "type": "object", "properties": { "id": { "type": "string" }, "active": { "type": "boolean" } } } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/reviewers/{id}/assignments": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Assignments"],
+        "summary": "Assign a module to a reviewer (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateAssignment" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Assignment" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/reviewers/{id}/assignments/{moduleId}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/IdPath" },
+        { "name": "moduleId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "patch": {
+        "tags": ["Assignments"],
+        "summary": "Update assignment permission (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateAssignment" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Assignment" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Assignments"],
+        "summary": "Remove an assignment (admin)",
+        "responses": { "204": { "description": "Removed" } }
+      }
+    },
+    "/documents": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Initiate upload (admin). Single file or batch; returns presigned POST target(s).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "oneOf": [{ "$ref": "#/components/schemas/InitUpload" }, { "$ref": "#/components/schemas/InitUploadBatch" }] }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload target(s) created",
+            "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/UploadTarget" }, { "$ref": "#/components/schemas/UploadBatchResult" }] } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "get": {
+        "tags": ["Documents"],
+        "summary": "List documents (admin)",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } } } } } }
+      }
+    },
+    "/documents/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get a document (admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/documents/{id}/confirm-upload": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Confirm content landed in S3; starts classification (admin, idempotent)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/documents/{id}/module": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "patch": {
+        "tags": ["Documents"],
+        "summary": "Manually reassign the document's module (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReassignModule" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/documents/{id}/approval-policy": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "patch": {
+        "tags": ["Documents"],
+        "summary": "Set the approval policy (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SetApprovalPolicy" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/documents/{id}/force-approval": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Force approval evaluation excluding unsubmitted records (admin)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ForceApproval" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApprovalResult" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/reviews/mine": {
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "List the authenticated reviewer's records",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ReviewRecord" } } } } } }
+      }
+    },
+    "/review-records/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/RecordIdPath" }],
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "Get a review record with annotations and section verdicts (owner/admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewRecordDetail" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/review-records/{id}/annotations": {
+      "parameters": [{ "$ref": "#/components/parameters/RecordIdPath" }],
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Add an annotation (owner, edit permission)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateAnnotation" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Annotation" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/review-records/{id}/sections/{sectionId}/verdict": {
+      "parameters": [
+        { "$ref": "#/components/parameters/RecordIdPath" },
+        { "name": "sectionId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "put": {
+        "tags": ["Reviews"],
+        "summary": "Set a section verdict (owner, edit permission)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerdictBody" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SectionVerdict" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/review-records/{id}/document-verdict": {
+      "parameters": [{ "$ref": "#/components/parameters/RecordIdPath" }],
+      "put": {
+        "tags": ["Reviews"],
+        "summary": "Set the document-level verdict (owner, edit permission)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerdictBody" } } } },
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewRecord" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/review-records/{id}/submit": {
+      "parameters": [{ "$ref": "#/components/parameters/RecordIdPath" }],
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Submit the review record; requires a document-level verdict",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewRecord" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/review-records/{id}/reopen": {
+      "parameters": [{ "$ref": "#/components/parameters/RecordIdPath" }],
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Reopen a completed review record (admin)",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewRecord" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/integrations/google/authorize-url": {
+      "get": {
+        "tags": ["Integrations"],
+        "summary": "Get the Google OAuth consent URL for the authenticated reviewer",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "authorizeUrl": { "type": "string" } } } } } } }
+      }
+    },
+    "/integrations/google/callback": {
+      "get": {
+        "tags": ["Integrations"],
+        "summary": "OAuth redirect target (NO auth; reviewer identified by signed state)",
+        "security": [],
+        "parameters": [
+          { "name": "code", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "error", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Linked", "content": { "application/json": { "schema": { "type": "object", "properties": { "linked": { "type": "boolean" } } } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/integrations/google": {
+      "delete": {
+        "tags": ["Integrations"],
+        "summary": "Unlink the authenticated reviewer's Google Calendar",
+        "responses": { "204": { "description": "Unlinked" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "parameters": {
+      "IdPath": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "RecordIdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Composite review record id: <documentId>#<reviewerId>",
+        "schema": { "type": "string" }
+      }
+    },
+    "responses": {
+      "ValidationError": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthenticated": { "description": "Missing or invalid token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "Insufficient permissions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Conflict", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string", "enum": ["VALIDATION_ERROR", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CONFLICT", "UPSTREAM_ERROR", "INTERNAL_ERROR"] },
+              "message": { "type": "string" },
+              "details": { "type": "array", "items": { "type": "object", "properties": { "field": { "type": "string" }, "issue": { "type": "string" } } } }
+            }
+          }
+        }
+      },
+      "Permission": { "type": "string", "enum": ["read", "edit"] },
+      "Verdict": { "type": "string", "enum": ["correct", "incorrect"] },
+      "ApprovalPolicy": { "type": "string", "enum": ["all", "any"] },
+      "DocumentStatus": { "type": "string", "enum": ["pending_content", "classifying", "classified", "needs_manual_classification", "classification_failed", "in_review", "approved", "rejected"] },
+      "ReviewRecordStatus": { "type": "string", "enum": ["pending", "completed"] },
+      "CreateModule": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "maxLength": 100 } } },
+      "Module": {
+        "type": "object",
+        "required": ["id", "name", "createdAt"],
+        "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }
+      },
+      "CreateReviewer": { "type": "object", "required": ["email", "name"], "properties": { "email": { "type": "string", "format": "email" }, "name": { "type": "string" } } },
+      "Reviewer": {
+        "type": "object",
+        "required": ["id", "email", "name", "role", "active", "createdAt"],
+        "properties": {
+          "id": { "type": "string" }, "email": { "type": "string" }, "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["revisor"] }, "active": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReviewerWithAssignments": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Reviewer" },
+          { "type": "object", "properties": { "assignments": { "type": "array", "items": { "$ref": "#/components/schemas/Assignment" } } } }
+        ]
+      },
+      "CreateAssignment": { "type": "object", "required": ["moduleId", "permission"], "properties": { "moduleId": { "type": "string" }, "permission": { "$ref": "#/components/schemas/Permission" } } },
+      "UpdateAssignment": { "type": "object", "required": ["permission"], "properties": { "permission": { "$ref": "#/components/schemas/Permission" } } },
+      "Assignment": {
+        "type": "object",
+        "required": ["reviewerId", "moduleId", "permission"],
+        "properties": { "reviewerId": { "type": "string" }, "moduleId": { "type": "string" }, "permission": { "$ref": "#/components/schemas/Permission" }, "createdAt": { "type": "string", "format": "date-time" } }
+      },
+      "InitUpload": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "description": "Must end in .md" } } },
+      "InitUploadBatch": {
+        "type": "object",
+        "required": ["files"],
+        "properties": { "files": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } } } }
+      },
+      "UploadTarget": {
+        "type": "object",
+        "required": ["documentId", "name", "uploadUrl", "uploadFields"],
+        "properties": {
+          "documentId": { "type": "string" }, "name": { "type": "string" },
+          "uploadUrl": { "type": "string", "description": "Presigned S3 POST URL" },
+          "uploadFields": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Form fields to POST before the file" }
+        }
+      },
+      "UploadBatchResult": {
+        "type": "object",
+        "required": ["results"],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "status": { "type": "string", "enum": ["ok", "error"] },
+                "documentId": { "type": "string" },
+                "uploadUrl": { "type": "string" },
+                "uploadFields": { "type": "object", "additionalProperties": { "type": "string" } },
+                "error": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "ReassignModule": { "type": "object", "required": ["moduleId"], "properties": { "moduleId": { "type": "string" } } },
+      "SetApprovalPolicy": { "type": "object", "required": ["approvalPolicy"], "properties": { "approvalPolicy": { "$ref": "#/components/schemas/ApprovalPolicy" } } },
+      "ForceApproval": {
+        "type": "object",
+        "required": ["excludedRecordIds", "reason"],
+        "properties": { "excludedRecordIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "reason": { "type": "string", "maxLength": 500 } }
+      },
+      "ApprovalResult": {
+        "type": "object",
+        "properties": { "decision": { "type": "string", "enum": ["approved", "rejected", "pending"] }, "document": { "$ref": "#/components/schemas/Document" } }
+      },
+      "Document": {
+        "type": "object",
+        "required": ["id", "name", "s3Key", "status", "approvalPolicy", "createdAt"],
+        "properties": {
+          "id": { "type": "string" }, "name": { "type": "string" }, "s3Key": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/DocumentStatus" },
+          "moduleId": { "type": "string" },
+          "classification": { "type": "object", "properties": { "source": { "type": "string", "enum": ["ai", "manual"] }, "confidence": { "type": "number" } } },
+          "approvalPolicy": { "$ref": "#/components/schemas/ApprovalPolicy" },
+          "approvalStatus": { "type": "string", "enum": ["approved", "rejected"] },
+          "approvalDecidedAt": { "type": "string", "format": "date-time" },
+          "excludedRecords": { "type": "array", "items": { "type": "object", "properties": { "reviewerId": { "type": "string" }, "reason": { "type": "string" } } } },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ScheduleInfo": {
+        "type": "object",
+        "properties": {
+          "done": { "type": "boolean" }, "eventId": { "type": "string" }, "reason": { "type": "string" },
+          "slot": { "type": "object", "properties": { "start": { "type": "string", "format": "date-time" }, "end": { "type": "string", "format": "date-time" } } }
+        }
+      },
+      "ReviewRecord": {
+        "type": "object",
+        "required": ["documentId", "reviewerId", "status", "scheduled", "createdAt"],
+        "properties": {
+          "documentId": { "type": "string" }, "reviewerId": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/ReviewRecordStatus" },
+          "documentVerdict": { "$ref": "#/components/schemas/Verdict" },
+          "scheduled": { "$ref": "#/components/schemas/ScheduleInfo" },
+          "createdAt": { "type": "string", "format": "date-time" }, "submittedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReviewRecordDetail": {
+        "type": "object",
+        "properties": {
+          "record": { "$ref": "#/components/schemas/ReviewRecord" },
+          "annotations": { "type": "array", "items": { "$ref": "#/components/schemas/Annotation" } },
+          "sectionVerdicts": { "type": "array", "items": { "$ref": "#/components/schemas/SectionVerdict" } }
+        }
+      },
+      "CreateAnnotation": {
+        "type": "object",
+        "required": ["target", "text"],
+        "properties": {
+          "target": { "type": "object", "required": ["type"], "properties": { "type": { "type": "string", "enum": ["section", "document"] }, "sectionId": { "type": "string" } } },
+          "text": { "type": "string", "maxLength": 5000 }
+        }
+      },
+      "Annotation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }, "documentId": { "type": "string" }, "reviewerId": { "type": "string" },
+          "target": { "type": "object", "properties": { "type": { "type": "string", "enum": ["section", "document"] }, "sectionId": { "type": "string" } } },
+          "text": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "VerdictBody": { "type": "object", "required": ["verdict"], "properties": { "verdict": { "$ref": "#/components/schemas/Verdict" } } },
+      "SectionVerdict": {
+        "type": "object",
+        "properties": { "documentId": { "type": "string" }, "reviewerId": { "type": "string" }, "sectionId": { "type": "string" }, "verdict": { "$ref": "#/components/schemas/Verdict" } }
+      }
+    }
+  }
+}

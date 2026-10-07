@@ -11,7 +11,7 @@ import { SecretsOAuthTokenStore } from '../../providers/calendar/token-store.js'
 import type { OAuthTokenStore } from '../../providers/calendar/token-store.js';
 import { getAuthContext } from '../auth/context.js';
 import { requireAuth } from '../auth/guards.js';
-import { ok, noContent, errorResponse } from './response.js';
+import { ok, noContent, redirect, errorResponse } from './response.js';
 
 export interface IntegrationHandlerDeps {
   oauth: GoogleOAuth;
@@ -25,7 +25,7 @@ async function getDeps(): Promise<IntegrationHandlerDeps> {
   const cfg = getConfig();
   const secrets = new SecretsManagerReader({ region: cfg.region });
   const clientSecret = cfg.googleClientSecretId
-    ? await secrets.getSecret(cfg.googleClientSecretId)
+    ? parseClientSecret(await secrets.getSecret(cfg.googleClientSecretId))
     : '';
   cached = {
     oauth: new GoogleOAuth({
@@ -78,8 +78,9 @@ export async function handler(
       // Google returns error/error_description when the user denies consent.
       const oauthError = event.queryStringParameters?.error;
       if (oauthError) {
-        const description = event.queryStringParameters?.error_description;
-        throw new UpstreamError('Google', `OAuth consent failed: ${description ?? oauthError}`);
+        // The user denied consent (or Google errored). Return them to the app
+        // with a flag rather than showing a raw error page.
+        return redirect(`${getConfig().frontUrl}/integraciones?google=error`);
       }
 
       const code = event.queryStringParameters?.code;
@@ -104,7 +105,8 @@ export async function handler(
 
       const { refreshToken } = await oauth.exchangeCode(code);
       await tokenStore.saveRefreshToken(reviewerId, refreshToken);
-      return ok({ linked: true });
+      // Browser-reached route: send the reviewer back to the app, not JSON.
+      return redirect(`${getConfig().frontUrl}/integraciones?google=linked`);
     }
 
     if (method === 'DELETE' && path.endsWith('/integrations/google')) {
@@ -118,5 +120,21 @@ export async function handler(
     return errorResponse(new NotFoundError('Route', `${method} ${path}`));
   } catch (err) {
     return errorResponse(err);
+  }
+}
+
+
+/**
+ * The Google client secret is stored in Secrets Manager as JSON
+ * (`{"clientSecret":"..."}`), the same shape the AuthStack consumes. Older
+ * deployments may have stored it as a raw string, so fall back to the raw value
+ * if it is not JSON.
+ */
+function parseClientSecret(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as { clientSecret?: string };
+    return parsed.clientSecret ?? raw;
+  } catch {
+    return raw;
   }
 }

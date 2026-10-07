@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import type { Construct } from 'constructs';
 
@@ -21,7 +22,7 @@ export class DataStack extends cdk.Stack {
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     this.table.addGlobalSecondaryIndex({
@@ -70,5 +71,13 @@ export class DataStack extends cdk.Stack {
         maxReceiveCount: 3,
       },
     });
+
+    // Fire classification when a document's .md content lands in S3 (R4.6):
+    // only `documents/` keys with the `.md` suffix trigger the pipeline.
+    this.bucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.SqsDestination(this.classificationQueue),
+      { prefix: 'documents/', suffix: '.md' },
+    );
   }
 }

@@ -19,7 +19,7 @@ export interface InitUploadResult {
 export interface DocumentServiceDeps {
   documentRepo: DocumentRepo;
   moduleRepo: Pick<ModuleRepo, 'get'>;
-  documentStore: Pick<DocumentStore, 'createUpload' | 'buildKey'>;
+  documentStore: Pick<DocumentStore, 'createUpload' | 'buildKey' | 'readContent'>;
   events: EventPublisher;
   config: Pick<AppConfig, 'defaultApprovalPolicy' | 'maxUploadSizeBytes'>;
 }
@@ -100,6 +100,20 @@ export class DocumentService {
     return this.getOrThrow(documentId);
   }
 
+  /**
+   * Read the Markdown content of a document from S3 and return it split into
+   * sections. Each `## heading` (or deeper) starts a new section; the text
+   * under it becomes its paragraphs. Lets the front render the document without
+   * a second storage round-trip.
+   */
+  async getContent(
+    documentId: string,
+  ): Promise<{ documentId: string; name: string; sections: { heading: string; paragraphs: string[] }[] }> {
+    const doc = await this.getOrThrow(documentId);
+    const raw = await this.deps.documentStore.readContent(doc.s3Key);
+    return { documentId: doc.id, name: doc.name, sections: splitSections(raw) };
+  }
+
   async list(): Promise<Document[]> {
     return this.deps.documentRepo.list();
   }
@@ -147,4 +161,28 @@ export class DocumentService {
     if (!doc) throw new NotFoundError('Document', documentId);
     return doc;
   }
+}
+
+/**
+ * Split Markdown into sections by heading. A line starting with `#` opens a new
+ * section; non-empty lines below it are paragraphs. Content before the first
+ * heading is kept under an empty heading so nothing is lost.
+ */
+function splitSections(markdown: string): { heading: string; paragraphs: string[] }[] {
+  const lines = markdown.split(/\r?\n/);
+  const sections: { heading: string; paragraphs: string[] }[] = [];
+  let current: { heading: string; paragraphs: string[] } = { heading: '', paragraphs: [] };
+  let started = false;
+
+  for (const line of lines) {
+    if (/^#{1,6}\s/.test(line)) {
+      if (started) sections.push(current);
+      current = { heading: line.replace(/^#{1,6}\s+/, '').trim(), paragraphs: [] };
+      started = true;
+    } else if (line.trim().length > 0) {
+      current.paragraphs.push(line.trim());
+    }
+  }
+  if (started || current.paragraphs.length > 0) sections.push(current);
+  return sections;
 }

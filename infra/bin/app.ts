@@ -23,18 +23,26 @@ const apiStack = new ApiStack(app, 'OliDocs-Api', {
   bucket: dataStack.bucket,
   userPool: authStack.userPool,
   userPoolClient: authStack.userPoolClient,
+  schedulingQueueUrl: dataStack.schedulingQueue.queueUrl,
 });
 
-new WorkersStack(app, 'OliDocs-Workers', {
+const workersStack = new WorkersStack(app, 'OliDocs-Workers', {
   env,
   table: dataStack.table,
   bucket: dataStack.bucket,
   classificationQueue: dataStack.classificationQueue,
+  classificationDlq: dataStack.classificationDlq,
   schedulingQueue: dataStack.schedulingQueue,
+  schedulingDlq: dataStack.schedulingDlq,
 });
 
-new EventsStack(app, 'OliDocs-Events', { env });
+const eventsStack = new EventsStack(app, 'OliDocs-Events', {
+  env,
+  table: dataStack.table,
+});
 
 // Explicit dependencies
 apiStack.addDependency(dataStack);
 apiStack.addDependency(authStack);
+workersStack.addDependency(dataStack);
+eventsStack.addDependency(dataStack);

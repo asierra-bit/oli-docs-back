@@ -24,6 +24,19 @@ export function noContent(): APIGatewayProxyStructuredResultV2 {
 }
 
 /**
+ * 302 redirect to an absolute URL. Used by browser-reached routes (e.g. the
+ * Google OAuth callback) that must return the user to the frontend rather than
+ * render a JSON body.
+ */
+export function redirect(location: string): APIGatewayProxyStructuredResultV2 {
+  return {
+    statusCode: 302,
+    headers: { location },
+    body: '',
+  };
+}
+
+/**
  * Map a thrown error to a uniform HTTP error response (R11.2).
  * DomainErrors map to their declared status; anything else is a 500.
  */

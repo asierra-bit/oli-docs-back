@@ -72,6 +72,7 @@ export function __setDeps(deps: DocumentHandlerDeps | null): void {
  *   POST  /v1/documents/{id}/confirm-upload     → confirm content landed
  *   GET   /v1/documents                         → list
  *   GET   /v1/documents/{id}                     → get one
+ *   GET   /v1/documents/{id}/content             → get content split into sections
  *   PATCH /v1/documents/{id}/module              → manual reclassification (R5.6)
  *   PATCH /v1/documents/{id}/approval-policy      → set approval policy (R9.1)
  *
@@ -126,6 +127,9 @@ export async function handler(
           details: { approvalPolicy: input.approvalPolicy },
         });
         return ok(doc);
+      }
+      if (method === 'GET' && path.endsWith('/content')) {
+        return ok(await documentService.getContent(documentId));
       }
       if (method === 'GET') {
         return ok(await documentService.get(documentId));

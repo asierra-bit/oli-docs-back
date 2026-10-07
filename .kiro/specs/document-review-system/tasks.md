@@ -127,20 +127,20 @@
     - Tests del handler con `FakeEventPublisher` y datos simulados.
     - _Requirements: 9.9, 13.1_
 
-- [ ] 15. Infraestructura CDK (TypeScript)
-  - [ ] 15.1 Implementar `DataStack`: tabla DynamoDB `AppTable` on-demand con `GSI1`/`GSI2`, bucket S3 (privado, SSE-S3, notificación `ObjectCreated`→SQS), colas SQS (classification, scheduling) + DLQs.
+- [x] 15. Infraestructura CDK (TypeScript)
+  - [x] 15.1 Implementar `DataStack`: tabla DynamoDB `AppTable` on-demand con `GSI1`/`GSI2`, bucket S3 (privado, SSE-S3, notificación `ObjectCreated`→SQS), colas SQS (classification, scheduling) + DLQs.
     - _Requirements: 12.1, 12.2, 12.3, 12.5_
-  - [ ] 15.2 Implementar `AuthStack`: Cognito User Pool + App Client, grupos `admin`/`revisor`.
+  - [x] 15.2 Implementar `AuthStack`: Cognito User Pool + App Client, grupos `admin`/`revisor`.
     - _Requirements: 10.1, 10.2_
-  - [ ] 15.3 Implementar `ApiStack`: HTTP API con JWT authorizer, Lambdas de API (arm64, esbuild), rutas `/v1/*`, permisos a DynamoDB/S3/Cognito/SSM/Secrets y `events:PutEvents` a EventBridge.
+  - [x] 15.3 Implementar `ApiStack`: HTTP API con JWT authorizer, Lambdas de API (arm64, esbuild), rutas `/v1/*`, permisos a DynamoDB/S3/Cognito/SSM/Secrets y `events:PutEvents` a EventBridge.
     - _Requirements: 11.1, 11.5, 12.1, 12.5, 13.1_
-  - [ ] 15.4 Implementar `WorkersStack`: Lambdas de clasificación y agendado, event sources (S3→SQS→Lambda y SQS→Lambda), permisos a Bedrock/Secrets/SSM y `events:PutEvents`, alarma básica de profundidad de DLQ.
+  - [x] 15.4 Implementar `WorkersStack`: Lambdas de clasificación y agendado, event sources (S3→SQS→Lambda y SQS→Lambda), permisos a Bedrock/Secrets/SSM y `events:PutEvents`, alarma básica de profundidad de DLQ.
     - _Requirements: 5.7, 6.6, 12.1, 12.5, 13.1_
-  - [ ] 15.5 Implementar `EventsStack`: bus EventBridge (default), regla scheduled (diaria) hacia la Lambda del Review Timeout Checker con permisos `events:PutEvents`; sin targets de consumidores predefinidos (los conectan los equipos de integración).
+  - [x] 15.5 Implementar `EventsStack`: bus EventBridge (default), regla scheduled (diaria) hacia la Lambda del Review Timeout Checker con permisos `events:PutEvents`; sin targets de consumidores predefinidos (los conectan los equipos de integración).
     - _Requirements: 9.9, 13.1, 13.3_
 
-- [ ] 16. Contrato de API (OpenAPI) y verificación de extremo a extremo
-  - [ ] 16.1 Escribir el documento OpenAPI 3 de todos los endpoints `/v1` (incluye `DELETE /v1/integrations/google` y `POST /v1/documents/{id}/force-approval`) con requests, responses y modelo de error como contrato para el equipo de frontend; añadir test que valide respuestas contra el esquema.
+- [x] 16. Contrato de API (OpenAPI) y verificación de extremo a extremo
+  - [x] 16.1 Escribir el documento OpenAPI 3 de todos los endpoints `/v1` (incluye `DELETE /v1/integrations/google` y `POST /v1/documents/{id}/force-approval`) con requests, responses y modelo de error como contrato para el equipo de frontend; añadir test que valide respuestas contra el esquema.
     - _Requirements: 6.8, 9.9, 11.2, 11.3, 11.4, 11.5_
-  - [ ] 16.2 Añadir prueba E2E ligera (con `FakeAiProvider`, `FakeCalendarProvider` y `FakeEventPublisher`): carga → clasificación → scheduling → revisión paralela → submit → evaluación de política de aprobación, verificando los eventos emitidos en cada paso.
+  - [x] 16.2 Añadir prueba E2E ligera (con `FakeAiProvider`, `FakeCalendarProvider` y `FakeEventPublisher`): carga → clasificación → scheduling → revisión paralela → submit → evaluación de política de aprobación, verificando los eventos emitidos en cada paso.
     - _Requirements: 4.5, 5.2, 6.1, 7.1, 7.5, 8.6, 9.3, 13.1_

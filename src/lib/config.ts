@@ -44,6 +44,8 @@ export interface AppConfig {
   googleClientSecretId: string;
   /** OAuth redirect URI registered with Google. */
   googleRedirectUri: string;
+  /** Base URL of the frontend, used to redirect back after the Calendar OAuth callback. */
+  frontUrl: string;
   /** AWS region. */
   region: string;
 }
@@ -94,6 +96,7 @@ export function getConfig(): AppConfig {
     googleClientId: envStr('GOOGLE_CLIENT_ID', ''),
     googleClientSecretId: envStr('GOOGLE_CLIENT_SECRET_ID', ''),
     googleRedirectUri: envStr('GOOGLE_REDIRECT_URI', ''),
+    frontUrl: envStr('FRONT_URL', 'http://localhost:4321'),
     region: envStr('AWS_REGION', 'us-east-1'),
   };
 
